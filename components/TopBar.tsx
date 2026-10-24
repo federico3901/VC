@@ -36,6 +36,12 @@ export function TopBar() {
   }
 
   const active = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+  const onLogin = path === "/login";
+
+  async function logout() {
+    await fetch("/api/login", { method: "DELETE" });
+    window.location.href = "/login";
+  }
 
   return (
     <header className="topbar">
@@ -44,14 +50,21 @@ export function TopBar() {
         <span className="brand-name">Topline Intake</span>
         <span className="brand-tag">Sample</span>
       </Link>
-      <nav className="nav">
-        {LINKS.map((l) => (
-          <Link key={l.href} href={l.href} aria-current={active(l.href) ? "page" : undefined}>
-            {l.label}
-          </Link>
-        ))}
-      </nav>
+      {!onLogin && (
+        <nav className="nav">
+          {LINKS.map((l) => (
+            <Link key={l.href} href={l.href} aria-current={active(l.href) ? "page" : undefined}>
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+      )}
       <div className="spacer" />
+      {!onLogin && (
+        <button className="btn ghost small" onClick={logout}>
+          Log out
+        </button>
+      )}
       <button className="icon-btn" onClick={toggle} aria-label="Toggle theme" title="Toggle theme">
         {theme === "dark" ? (
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">

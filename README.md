@@ -80,9 +80,20 @@ Only to turn **unstructured text** (call transcripts, pitch decks, long Notion n
 structured fields automatically, for example to pull the cap table or TAM out of a deck. That is an
 optional next step (one API call per document). Everything above works without it.
 
-## Deploy
+## Deploy (Vercel)
 
-Works as-is on Vercel (free tier): import the repo and set `NOTION_TOKEN` and `NOTION_DEALFLOW_DB` as environment variables.
+1. On <https://vercel.com> → **Add New… › Project** → import `federico3901/vc` (framework: Next.js, defaults are fine).
+2. Before the first deploy, add these **Environment Variables**:
+   - `NOTION_TOKEN`: the integration secret
+   - `NOTION_DEALFLOW_DB`: `262bb3a481938306850e8116a9ce6591`
+   - `APP_PASSWORD`: the team password
+3. **Deploy**. Every push to the branch redeploys automatically.
+
+### Password protection
+
+The whole app (pages and `/api/*`) sits behind a shared team password (`APP_PASSWORD`). After
+signing in, a session cookie keeps you logged in for 30 days. Changing the password logs everyone out.
+In production the app refuses to serve anything if `APP_PASSWORD` is missing; in local development it stays open.
 
 ## Next steps
 
