@@ -6,10 +6,8 @@ import { useEffect, useState } from "react";
 
 export function BrandMark() {
   return (
-    <svg className="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20M12 2c3 3.2 3 16.8 0 20M12 2c-3 3.2-3 16.8 0 20" />
-      <circle cx="17.5" cy="6.5" r="2.2" fill="var(--brand-dot)" stroke="none" />
+    <svg className="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+      <path d="M17.5 19H8a5.5 5.5 0 1 1 1.6-10.76A6 6 0 0 1 21 11.5a4 4 0 0 1-3.5 7.5Z" />
     </svg>
   );
 }
@@ -22,10 +20,10 @@ const LINKS = [
 
 export function TopBar() {
   const path = usePathname();
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
 
   useEffect(() => {
-    setTheme(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
+    setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
   }, []);
 
   function toggle() {
