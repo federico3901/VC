@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
-import { listDeals, notionConfig } from "@/lib/notion";
-import { DEMO_DEALS } from "@/lib/notion-demo";
+import { checkSchema, listDeals, notionConfig } from "@/lib/notion";
+import { DEMO_DEALS, demoSchemaReport } from "@/lib/notion-demo";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   if (!notionConfig()) {
-    return NextResponse.json({ configured: false, deals: DEMO_DEALS.map(({ body, ...d }) => d) });
+    return NextResponse.json({
+      configured: false,
+      schema: demoSchemaReport(),
+      deals: DEMO_DEALS.map(({ body, ...d }) => d),
+    });
   }
   try {
-    return NextResponse.json({ configured: true, deals: await listDeals() });
+    // The schema check never blocks the import: if it fails, rows still load.
+    const [deals, schema] = await Promise.all([listDeals(), checkSchema().catch(() => null)]);
+    return NextResponse.json({ configured: true, deals, schema });
   } catch (e) {
     return NextResponse.json({ configured: true, error: (e as Error).message, deals: [] }, { status: 502 });
   }

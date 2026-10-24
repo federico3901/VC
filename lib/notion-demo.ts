@@ -1,5 +1,6 @@
 // Fictional Deal Flow rows served when NOTION_TOKEN is not set, so the import flow can be tried end to end.
 import type { NotionDeal } from "./notion-map";
+import { analyzeSchema, EXPECTED_COLUMNS, type LiveColumn, type SchemaReport } from "./notion-schema";
 
 export const DEMO_DEALS: NotionDeal[] = [
   {
@@ -63,3 +64,21 @@ export const DEMO_DEALS: NotionDeal[] = [
     lastEdited: "2026-10-20T08:00:00Z",
   },
 ];
+
+// Demo schema with two example changes, so the schema warning can be seen without a token:
+// "Raising" renamed to "Round Size", and a new "Lead Investor" column.
+export function demoSchemaReport(): SchemaReport {
+  const live: LiveColumn[] = [
+    ...EXPECTED_COLUMNS.filter((c) => c.name !== "Raising").map((c) => ({
+      name: c.name,
+      type: c.types[0] ?? "place",
+      options: c.options ? [...c.options] : undefined,
+    })),
+    { name: "Round Size", type: "number" },
+    { name: "Lead Investor", type: "rich_text" },
+    { name: "Operators", type: "relation" },
+    { name: "Source ", type: "relation" },
+    { name: "Meeting", type: "relation" },
+  ];
+  return { ...analyzeSchema(live), demo: true };
+}

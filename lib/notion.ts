@@ -2,6 +2,7 @@
 // Plain REST + fetch: no SDK, no LLM — properties map 1:1 onto dossier fields.
 import "server-only";
 import type { NotionDeal } from "./notion-map";
+import { analyzeSchema, type LiveColumn, type SchemaReport } from "./notion-schema";
 
 const API = "https://api.notion.com/v1";
 const VERSION = "2022-06-28";
@@ -72,15 +73,26 @@ function value(p: Prop | undefined): unknown {
 }
 
 function toDeal(page: Page): NotionDeal {
-  const s = (n: string) => (value(prop(page, n)) as string | null) ?? "";
-  const n = (k: string) => (value(prop(page, k)) as number | null) ?? null;
+  // Only accept a value of the expected shape: if a column changes type, the field is skipped
+  // (and the schema check reports it) instead of filling the dossier with wrong data.
+  const s = (k: string) => {
+    const v = value(prop(page, k));
+    return typeof v === "string" ? v : "";
+  };
+  const n = (k: string) => {
+    const v = value(prop(page, k));
+    return typeof v === "number" ? v : null;
+  };
+  // The company name falls back to the title column, whatever it is called.
+  const title = prop(page, "Firm") ?? Object.values(page.properties).find((p) => p.type === "title");
+  const industries = value(prop(page, "Industry"));
   return {
     pageId: page.id.replace(/-/g, ""),
     url: page.url,
-    firm: s("Firm"),
-    stage: (value(prop(page, "Stage")) as string | null) ?? null,
-    industries: (value(prop(page, "Industry")) as string[] | null) ?? [],
-    status: (value(prop(page, "Deal Status")) as string | null) ?? null,
+    firm: (value(title) as string | null) ?? "",
+    stage: s("Stage") || null,
+    industries: Array.isArray(industries) ? industries : [],
+    status: s("Deal Status") || null,
     raising: n("Raising"),
     raised: n("Raised"),
     valuation: n("Valuation"),
@@ -89,10 +101,29 @@ function toDeal(page: Page): NotionDeal {
     website: s("Website"),
     hq: s("Headquarter"),
     drive: s("Drive"),
-    lastContact: (value(prop(page, "Last Contact")) as string | null) ?? null,
+    lastContact: s("Last Contact") || null,
     notes: s("Notes"),
     lastEdited: page.last_edited_time,
   };
+}
+
+let schemaCache: { at: number; report: SchemaReport } | null = null;
+
+/** Compares the live Deal Flow columns with the ones the app reads. Cached for a minute. */
+export async function checkSchema(): Promise<SchemaReport> {
+  const cfg = notionConfig();
+  if (!cfg) throw new Error("Notion not configured");
+  if (schemaCache && Date.now() - schemaCache.at < 60_000) return schemaCache.report;
+  type DbProp = { type: string; select?: { options: { name: string }[] }; status?: { options: { name: string }[] } };
+  const db = await call<{ properties: Record<string, DbProp> }>(`/databases/${cfg.db}`, cfg.token);
+  const live: LiveColumn[] = Object.entries(db.properties).map(([name, p]) => ({
+    name,
+    type: p.type,
+    options: (p.select ?? p.status)?.options.map((o) => o.name),
+  }));
+  const report = analyzeSchema(live);
+  schemaCache = { at: Date.now(), report };
+  return report;
 }
 
 export async function listDeals(): Promise<NotionDeal[]> {

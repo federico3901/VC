@@ -49,6 +49,20 @@ The token stays on the server (`app/api/notion/*`). It is never sent to the brow
 | Score | Notion score (shown next to the dossier’s own weighted score) |
 | Notes + page body | One timeline entry, refreshed on each sync |
 
+### If the Notion database changes
+
+On every load of **Notion sync** (and on every sync from a dossier) the app compares the live
+Deal Flow columns with the ones it reads (`lib/notion-schema.ts`) and shows a warning when:
+
+- a column it needs is **missing** — e.g. renamed — with a guess of the new name (“Was it renamed to ‘Round Size’?”);
+- a column **changed type** (e.g. Raising from number to text) — the field is skipped rather than filled with wrong data;
+- **Stage** or **Deal Status** have options the app does not recognise;
+- there are **new columns** the app does not use yet (informational).
+
+Nothing in the dossiers is ever deleted: affected fields simply stop updating until the mapping is
+updated (one line in `lib/notion-schema.ts` plus the matching line in `lib/notion.ts`). Renaming the
+title column (Firm) is harmless: the company name is always read from the title column.
+
 **Merge rule:** Notion fills empty fields and refreshes the fields it owns. It never overwrites
 a value captured on a founder call, from a deck, or edited by hand. Each field shows its source
 (Notion / Founder call / Deck / Research / Manual) and how reliable it is (confirmed / reported / estimated).

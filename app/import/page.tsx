@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { SearchIcon, StatusBadge, Toast } from "@/components/bits";
+import { SchemaAlert } from "@/components/SchemaAlert";
 import { date, money } from "@/lib/format";
 import type { NotionDeal } from "@/lib/notion-map";
+import type { SchemaReport } from "@/lib/notion-schema";
 import { useStore } from "@/lib/store";
 import { describeMerge, syncDeal } from "@/lib/sync";
 import type { DealStatus } from "@/lib/types";
@@ -13,6 +15,7 @@ export default function ImportPage() {
   const { startups, save, ready } = useStore();
   const [deals, setDeals] = useState<NotionDeal[]>([]);
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const [schema, setSchema] = useState<SchemaReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -27,6 +30,7 @@ export default function ImportPage() {
       const json = await res.json();
       setConfigured(json.configured);
       setDeals(json.deals ?? []);
+      setSchema(json.schema ?? null);
       if (json.error) setError(json.error);
     } catch (e) {
       setError((e as Error).message);
@@ -96,6 +100,7 @@ export default function ImportPage() {
         </div>
       )}
       {error && <div className="callout warn" style={{ marginBottom: 14 }}>Notion error: {error}</div>}
+      <SchemaAlert report={schema} />
 
       <div className="grid g-main">
         <section className="panel">
