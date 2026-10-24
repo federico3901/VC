@@ -25,10 +25,12 @@ export const EXPECTED_COLUMNS: ExpectedColumn[] = [
   { name: "Drive", types: ["url", "rich_text"], feeds: "Documents" },
   { name: "Last Contact", types: ["date"], feeds: "Last contact" },
   { name: "Notes", types: ["rich_text"], feeds: "Timeline entry" },
+  { name: "Operators", types: ["relation"], feeds: "Team (contacts)" },
+  { name: "Source", types: ["relation"], feeds: "Source / referral" },
 ];
 
 /** Columns the app knows about but deliberately does not import. */
-const KNOWN_UNUSED = ["Operators", "Source", "Meeting"];
+const KNOWN_UNUSED = ["Meeting"];
 
 export interface LiveColumn {
   name: string;

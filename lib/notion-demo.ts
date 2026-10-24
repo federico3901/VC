@@ -1,6 +1,11 @@
 // Fictional Deal Flow rows served when NOTION_TOKEN is not set, so the import flow can be tried end to end.
-import type { NotionDeal } from "./notion-map";
+import type { NotionContact, NotionDeal } from "./notion-map";
 import { analyzeSchema, EXPECTED_COLUMNS, type LiveColumn, type SchemaReport } from "./notion-schema";
+
+// Sample contacts as they come back from the Contacts database (fictional).
+const contact = (id: string, name: string, roles: string[], email: string, extra: Partial<NotionContact> = {}): NotionContact => ({
+  id, name, roles, email, phone: "", linkedin: "", founder: roles.some((r) => /^C.O$/.test(r)), notes: "", ...extra,
+});
 
 export const DEMO_DEALS: NotionDeal[] = [
   {
@@ -21,6 +26,11 @@ export const DEMO_DEALS: NotionDeal[] = [
     lastContact: "2026-10-23",
     notes: "Runtime security for AI agents. Moved to DD after second meeting.",
     lastEdited: "2026-10-23T15:40:00Z",
+    operators: [
+      contact("demo-c1", "Maya Okafor", ["CEO"], "maya@kestrel-labs.example", { phone: "+1 512 555 0142" }),
+      contact("demo-c2", "Tomás Reyes", ["CTO"], "tomas@kestrel-labs.example"),
+    ],
+    sources: [contact("demo-s1", "Dana Whitfield", ["Advisor"], "dana@example.com")],
     body:
       "## Call notes — 2026-10-23\n• Tech deep-dive with CTO: architecture solid, Rust proxy benchmarks reproduced\n• Northgate term sheet signed for $2.5M of the $4.5M\n☐ Ask for updated cap table after advisor grants are ratified",
   },
@@ -42,6 +52,11 @@ export const DEMO_DEALS: NotionDeal[] = [
     lastContact: "2026-10-22",
     notes: "Predictive berth scheduling for container ports. Two pilot terminals in the Gulf.",
     lastEdited: "2026-10-22T10:05:00Z",
+    operators: [
+      contact("demo-c3", "Luis Navarro", ["CEO"], "luis@harbor-ai.example", { linkedin: "https://www.linkedin.com/", notes: "Ex-port operations lead" }),
+      contact("demo-c4", "Ada Chen", ["CTO"], "ada@harbor-ai.example", { notes: "Ex-logistics ML lead" }),
+    ],
+    sources: [contact("demo-s2", "Gulf Coast Accelerator", ["Accelerator"], "")],
     body: "## First call\n• Founders: ex-port operations + ex-logistics ML lead\n• 2 paid pilots, $8k MRR\n• Raising $2M SAFE",
   },
   {
@@ -76,8 +91,6 @@ export function demoSchemaReport(): SchemaReport {
     })),
     { name: "Round Size", type: "number" },
     { name: "Lead Investor", type: "rich_text" },
-    { name: "Operators", type: "relation" },
-    { name: "Source ", type: "relation" },
     { name: "Meeting", type: "relation" },
   ];
   return { ...analyzeSchema(live), demo: true };

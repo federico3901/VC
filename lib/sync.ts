@@ -28,6 +28,10 @@ export function describeMerge(r: MergeResult & { schema?: SchemaReport | null })
   const parts: string[] = [];
   parts.push(r.updated.length ? `Updated: ${[...new Set(r.updated.map(label))].join(", ")}.` : "Already up to date.");
   if (r.kept.length) parts.push(`Kept founder-call/manual values for: ${[...new Set(r.kept.map(label))].join(", ")}.`);
+  if (r.unreadableContacts)
+    parts.push(
+      `⚠ ${r.unreadableContacts} linked contact${r.unreadableContacts > 1 ? "s" : ""} could not be read — share the Contacts database with the Notion connection.`,
+    );
   const problems = r.schema?.issues.filter((i) => i.kind !== "new").length ?? 0;
   if (problems) parts.push(`⚠ ${problems} Deal Flow column${problems > 1 ? "s" : ""} changed in Notion — see Notion sync.`);
   return parts.join(" ");

@@ -48,6 +48,12 @@ The token stays on the server (`app/api/notion/*`). It is never sent to the brow
 | Last Contact | Last contact (most recent date wins) |
 | Score | Notion score (shown next to the dossier’s own weighted score) |
 | Notes + page body | One timeline entry, refreshed on each sync |
+| Operators (→ Contacts) | Team: name, role, email, phone, LinkedIn |
+| Source (→ Contacts) | Source / referral |
+
+Operators and Source are relations to the **Contacts** database. To read them, the Notion
+connection must also have access to Contacts (open it → `•••` → **Connections**); otherwise the
+sync reports how many linked contacts it could not read.
 
 ### If the Notion database changes
 

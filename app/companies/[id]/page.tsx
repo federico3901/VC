@@ -277,12 +277,14 @@ function TeamBody() {
       <ListEditor<Person>
         path="team"
         addLabel="Add person"
-        blank={{ name: "", role: "", background: "", linkedin: "", fullTime: true }}
+        blank={{ name: "", role: "", background: "", linkedin: "", fullTime: true, email: "", phone: "" }}
         cols={[
-          { key: "name", label: "Name", width: "18%" },
-          { key: "role", label: "Role", width: "16%" },
+          { key: "name", label: "Name", width: "15%" },
+          { key: "role", label: "Role", width: "12%" },
           { key: "background", label: "Background", type: "long" },
-          { key: "linkedin", label: "LinkedIn", width: "16%" },
+          { key: "email", label: "Email", width: "15%" },
+          { key: "phone", label: "Phone", width: "11%" },
+          { key: "linkedin", label: "LinkedIn", width: "13%" },
           { key: "fullTime", label: "Full-time", type: "bool", width: "70px" },
         ]}
       />
@@ -295,7 +297,11 @@ function TeamBody() {
           <h4>{p.name}</h4>
           <div className="eyebrow" style={{ color: "var(--signal)" }}>{p.role}{!p.fullTime && " · part-time"}</div>
           <p className="muted" style={{ margin: "8px 0 0", fontSize: 12.5 }}>{p.background || "—"}</p>
-          {p.linkedin && <a href={p.linkedin} target="_blank" rel="noreferrer" style={{ color: "var(--signal)", fontSize: 12 }}>LinkedIn ↗</a>}
+          <div className="stack-v" style={{ gap: 2, marginTop: 8, fontSize: 12.5 }}>
+            {p.email && <a href={`mailto:${p.email}`} style={{ color: "var(--signal)" }}>{p.email}</a>}
+            {p.phone && <a href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a>}
+            {p.linkedin && <a href={p.linkedin} target="_blank" rel="noreferrer" style={{ color: "var(--signal)" }}>LinkedIn ↗</a>}
+          </div>
         </div>
       ))}
     </div>

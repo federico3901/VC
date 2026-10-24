@@ -1,7 +1,7 @@
 // Server-only Notion client. Reads the Deal Flow database through the public Notion API.
 // Plain REST + fetch: no SDK, no LLM — properties map 1:1 onto dossier fields.
 import "server-only";
-import type { NotionDeal } from "./notion-map";
+import type { NotionContact, NotionDeal } from "./notion-map";
 import { analyzeSchema, type LiveColumn, type SchemaReport } from "./notion-schema";
 
 const API = "https://api.notion.com/v1";
@@ -81,6 +81,10 @@ function value(p: Prop | undefined): unknown {
       return ((v as { name: string }[]) ?? []).map((o) => o.name);
     case "date":
       return (v as { start?: string } | null)?.start ?? null;
+    case "relation":
+      return ((v as { id: string }[]) ?? []).map((r) => r.id.replace(/-/g, ""));
+    case "checkbox":
+      return Boolean(v);
     case "place": {
       const pl = v as { name?: string; address?: string } | null;
       return pl?.name || pl?.address || "";
@@ -104,6 +108,10 @@ function toDeal(page: Page): NotionDeal {
   // The company name falls back to the title column, whatever it is called.
   const title = prop(page, "Firm") ?? Object.values(page.properties).find((p) => p.type === "title");
   const industries = value(prop(page, "Industry"));
+  const ids = (k: string) => {
+    const v = value(prop(page, k));
+    return Array.isArray(v) ? (v as string[]) : [];
+  };
   return {
     pageId: page.id.replace(/-/g, ""),
     url: page.url,
@@ -122,7 +130,43 @@ function toDeal(page: Page): NotionDeal {
     lastContact: s("Last Contact") || null,
     notes: s("Notes"),
     lastEdited: page.last_edited_time,
+    operatorIds: ids("Operators"),
+    sourceIds: ids("Source"),
   };
+}
+
+const MAX_CONTACTS = 15;
+
+/** Reads one Contacts page. Returns null when the connection cannot see it. */
+async function fetchContact(id: string, token: string): Promise<NotionContact | null> {
+  let page: Page;
+  try {
+    page = await call<Page>(`/pages/${id}`, token);
+  } catch {
+    return null;
+  }
+  const byType = (t: string) => Object.values(page.properties).find((p) => p.type === t);
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const roles = value(prop(page, "Role"));
+  return {
+    id,
+    name: str(value(prop(page, "Contacts") ?? byType("title"))),
+    roles: Array.isArray(roles) ? roles : typeof roles === "string" && roles ? [roles] : [],
+    email: str(value(prop(page, "Email") ?? byType("email"))),
+    phone: str(value(prop(page, "Phone Number") ?? byType("phone_number"))),
+    linkedin: str(value(prop(page, "Linkedin"))),
+    founder: value(prop(page, "Founder")) === true,
+    notes: str(value(prop(page, "Notes"))),
+  };
+}
+
+/** Resolves the Operators and Source relations into contact details. */
+async function resolveContacts(deal: NotionDeal, token: string) {
+  const load = (list: string[] = []) => Promise.all(list.slice(0, MAX_CONTACTS).map((id) => fetchContact(id, token)));
+  const [ops, srcs] = await Promise.all([load(deal.operatorIds), load(deal.sourceIds)]);
+  deal.operators = ops.filter((c): c is NotionContact => c !== null);
+  deal.sources = srcs.filter((c): c is NotionContact => c !== null);
+  deal.unreadableContacts = ops.length + srcs.length - deal.operators.length - deal.sources.length;
 }
 
 let schemaCache: { at: number; report: SchemaReport } | null = null;
@@ -211,6 +255,6 @@ export async function getDeal(pageId: string): Promise<NotionDeal> {
   if (!cfg) throw new Error("Notion not configured");
   const page = await call<Page>(`/pages/${pageId}`, cfg.token);
   const deal = toDeal(page);
-  deal.body = await pageText(pageId, cfg.token);
+  [deal.body] = await Promise.all([pageText(pageId, cfg.token), resolveContacts(deal, cfg.token)]);
   return deal;
 }

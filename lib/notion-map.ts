@@ -1,7 +1,19 @@
 // Maps a Notion "Deal Flow" row onto a Startup dossier.
 // Shared by the server (API routes) and the client (merge on import).
 import { emptyStartup, getPath, isFilled, setPath, slugify } from "./model";
-import { DEAL_STATUSES, STAGES, type DealStatus, type Stage, type Startup } from "./types";
+import { DEAL_STATUSES, STAGES, type DealStatus, type Person, type Stage, type Startup } from "./types";
+
+/** A row of the Contacts database, reached through the Operators / Source relations. */
+export interface NotionContact {
+  id: string;
+  name: string;
+  roles: string[];
+  email: string;
+  phone: string;
+  linkedin: string;
+  founder: boolean;
+  notes: string;
+}
 
 /** A Deal Flow row, normalised from the Notion API. */
 export interface NotionDeal {
@@ -24,6 +36,14 @@ export interface NotionDeal {
   lastEdited: string;
   /** Plain-text page content (call notes etc.); only present on single-page fetches. */
   body?: string;
+  /** Related Contacts pages: Operators (the team) and Source (who introduced the deal). */
+  operatorIds?: string[];
+  sourceIds?: string[];
+  /** Resolved contacts; only present on single-page fetches. */
+  operators?: NotionContact[];
+  sources?: NotionContact[];
+  /** Related contacts the Notion connection could not read (Contacts database not shared). */
+  unreadableContacts?: number;
 }
 
 function normStatus(s: string | null): DealStatus | null {
@@ -52,6 +72,7 @@ export function notionFieldValues(d: NotionDeal): Record<string, unknown> {
     "round.instrument": d.roundInfo ? d.roundInfo.split(/[—\-–(]/)[0].trim().slice(0, 80) : null,
     "round.notes": d.roundInfo || null,
     "description.oneLiner": d.notes ? d.notes.split(/(?<=\.)\s/)[0].slice(0, 240) : null,
+    referral: d.sources?.length ? d.sources.map((c) => c.name).filter(Boolean).join(", ") : null,
   };
   return Object.fromEntries(Object.entries(v).filter(([, x]) => x != null && x !== ""));
 }
@@ -70,12 +91,42 @@ export const NOTION_FIELD_LABELS: Record<string, string> = {
   "round.instrument": "Round Info",
   "round.notes": "Round Info",
   "description.oneLiner": "Notes",
+  referral: "Source",
+  team: "Operators (contacts)",
 };
+
+const DEFAULTS = emptyStartup("", "");
 
 export interface MergeResult {
   startup: Startup;
   updated: string[];
   kept: string[]; // fields where a value from a founder call / manual edit was kept
+  unreadableContacts: number;
+}
+
+/** Adds Notion contacts to the team; existing people are only completed, never overwritten. */
+function mergeContacts(team: Person[], contacts: NotionContact[]): { team: Person[]; changed: boolean } {
+  const out = team.map((p) => ({ ...p }));
+  let changed = false;
+  for (const c of contacts) {
+    if (!c.name) continue;
+    const role = c.roles.join(", ") || (c.founder ? "Founder" : "");
+    const hit = out.find((p) => (p.notionId && p.notionId === c.id) || p.name.trim().toLowerCase() === c.name.trim().toLowerCase());
+    if (!hit) {
+      out.push({ name: c.name, role, background: c.notes, linkedin: c.linkedin, fullTime: true, email: c.email, phone: c.phone, notionId: c.id });
+      changed = true;
+      continue;
+    }
+    const fill: [keyof Person, string][] = [["role", role], ["linkedin", c.linkedin], ["email", c.email], ["phone", c.phone], ["background", c.notes]];
+    for (const [k, v] of fill) {
+      if (v && !hit[k]) {
+        (hit as unknown as Record<string, unknown>)[k] = v;
+        changed = true;
+      }
+    }
+    if (!hit.notionId) hit.notionId = c.id;
+  }
+  return { team: out, changed };
 }
 
 /**
@@ -99,12 +150,14 @@ export function mergeNotionDeal(existing: Startup | null, d: NotionDeal, taken: 
     const prov = s.provenance[path];
     const current = getPath(s, path);
     const same = JSON.stringify(current) === JSON.stringify(value);
-    // A filled field with no recorded source counts as hand-entered.
+    // A filled field with no recorded source counts as hand-entered, unless it still holds the
+    // value every new dossier starts with (e.g. status "To be reviewed").
     // Last contact is the exception: the most recent date wins, wherever it was logged.
+    const isDefault = JSON.stringify(current) === JSON.stringify(getPath(DEFAULTS, path));
     const ownedElsewhere =
       path === "lastContact"
         ? typeof current === "string" && current >= (value as string)
-        : isFilled(current) && (!prov || prov.source !== "notion");
+        : isFilled(current) && (prov ? prov.source !== "notion" : !isDefault);
     if (ownedElsewhere) {
       if (!same) kept.push(path);
       continue;
@@ -129,6 +182,15 @@ export function mergeNotionDeal(existing: Startup | null, d: NotionDeal, taken: 
     updated.push("documents");
   }
 
+  if (d.operators?.length) {
+    const r = mergeContacts(s.team, d.operators);
+    if (r.changed) {
+      s.team = r.team;
+      updated.push("team");
+      if (!s.provenance.team) s.provenance.team = { source: "notion", confidence: "confirmed", at: now };
+    }
+  }
+
   // Page content (call notes written in Notion) lives in one timeline entry that is refreshed on every sync.
   const notesText = [d.notes, d.body].filter(Boolean).join("\n\n").trim();
   if (notesText) {
@@ -144,5 +206,5 @@ export function mergeNotionDeal(existing: Startup | null, d: NotionDeal, taken: 
     if (i === -1) s.notes = [entry, ...s.notes];
     else if (s.notes[i].body !== notesText) s.notes = s.notes.map((n, j) => (j === i ? entry : n));
   }
-  return { startup: s, updated, kept };
+  return { startup: s, updated, kept, unreadableContacts: d.unreadableContacts ?? 0 };
 }

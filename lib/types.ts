@@ -35,6 +35,9 @@ export interface Person {
   background: string;
   linkedin: string;
   fullTime: boolean;
+  email?: string;
+  phone?: string;
+  notionId?: string; // set when the person came from the Notion Contacts database
 }
 
 export interface CapRow {
