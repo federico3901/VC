@@ -6,7 +6,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!notionConfig()) {
+  let cfg;
+  try {
+    cfg = notionConfig();
+  } catch (e) {
+    return NextResponse.json({ configured: true, error: (e as Error).message }, { status: 500 });
+  }
+  if (!cfg) {
     const deal = DEMO_DEALS.find((d) => d.pageId === id);
     return deal
       ? NextResponse.json({ configured: false, deal, schema: demoSchemaReport() })

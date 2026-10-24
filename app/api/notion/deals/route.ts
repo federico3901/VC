@@ -5,7 +5,13 @@ import { DEMO_DEALS, demoSchemaReport } from "@/lib/notion-demo";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!notionConfig()) {
+  let cfg;
+  try {
+    cfg = notionConfig();
+  } catch (e) {
+    return NextResponse.json({ configured: true, error: (e as Error).message, deals: [] }, { status: 500 });
+  }
+  if (!cfg) {
     return NextResponse.json({
       configured: false,
       schema: demoSchemaReport(),
@@ -17,6 +23,9 @@ export async function GET() {
     const [deals, schema] = await Promise.all([listDeals(), checkSchema().catch(() => null)]);
     return NextResponse.json({ configured: true, deals, schema });
   } catch (e) {
-    return NextResponse.json({ configured: true, error: (e as Error).message, deals: [] }, { status: 502 });
+    return NextResponse.json(
+      { configured: true, error: `${(e as Error).message} (database ID used: ${cfg.db})`, deals: [] },
+      { status: 502 },
+    );
   }
 }

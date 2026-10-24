@@ -7,10 +7,28 @@ import { analyzeSchema, type LiveColumn, type SchemaReport } from "./notion-sche
 const API = "https://api.notion.com/v1";
 const VERSION = "2022-06-28";
 
+/**
+ * Accepts the bare 32-character ID, the dashed UUID form, or a whole Notion link
+ * (e.g. ".../75fb…b717?v=8ceb…"): the first 32-hex-digit run is the database ID.
+ */
+export function parseDatabaseId(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const uuid = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  if (uuid) return uuid[0].replace(/-/g, "").toLowerCase();
+  const runs = raw.match(/[0-9a-f]+/gi) ?? [];
+  const exact = runs.find((r) => r.length === 32);
+  // In a link slug ("Deal-Flow-<id>") the ID ends the run, so a longer run keeps its last 32 chars.
+  const id = exact ?? runs.find((r) => r.length > 32)?.slice(-32);
+  return id ? id.toLowerCase() : null;
+}
+
 export function notionConfig() {
-  const token = process.env.NOTION_TOKEN?.trim();
-  const db = process.env.NOTION_DEALFLOW_DB?.trim();
-  return token && db ? { token, db } : null;
+  const token = process.env.NOTION_TOKEN?.trim().replace(/^["']|["']$/g, "");
+  const raw = process.env.NOTION_DEALFLOW_DB?.trim();
+  if (!token || !raw) return null;
+  const db = parseDatabaseId(raw);
+  if (!db) throw new Error(`NOTION_DEALFLOW_DB ("${raw.slice(0, 80)}") does not contain a Notion database ID (32 letters/digits).`);
+  return { token, db };
 }
 
 async function call<T>(path: string, token: string, init?: RequestInit): Promise<T> {
