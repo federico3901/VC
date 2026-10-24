@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Meter, StatusBadge, Toast } from "@/components/bits";
 import { catColor, LineChart, MarketCircles, StackBar } from "@/components/charts";
 import { DossierProvider, Field, ListEditor, Section, StringList, useDossier, useEditing } from "@/components/dossier";
@@ -50,17 +50,38 @@ export default function DossierPage() {
   const [syncing, setSyncing] = useState(false);
   const [active, setActive] = useState("overview");
 
+  // Scroll-spy: the active section is the last one whose top has passed the top bar.
+  // At the very bottom the last section wins (short final sections can never reach the top).
+  // After a click in the sidebar the clicked section stays highlighted until the user scrolls.
+  const lockRef = useRef<string | null>(null);
   useEffect(() => {
-    const els = SECTIONS.map((x) => document.getElementById(x.id)).filter(Boolean) as HTMLElement[];
-    const io = new IntersectionObserver(
-      (entries) => {
-        const vis = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (vis[0]) setActive(vis[0].target.id);
-      },
-      { rootMargin: "-80px 0px -60% 0px" },
-    );
-    els.forEach((e) => io.observe(e));
-    return () => io.disconnect();
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const els = SECTIONS.map((x) => document.getElementById(x.id)).filter(Boolean) as HTMLElement[];
+      if (!els.length) return;
+      const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+      let current = els[0].id;
+      for (const el of els) if (el.getBoundingClientRect().top <= 140) current = el.id;
+      if (atBottom) current = lockRef.current ?? els[els.length - 1].id;
+      setActive(current);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    const unlock = () => (lockRef.current = null);
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", unlock, { passive: true });
+    window.addEventListener("touchmove", unlock, { passive: true });
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", unlock);
+      window.removeEventListener("touchmove", unlock);
+      window.removeEventListener("keydown", unlock);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [ready, s?.id]);
 
   if (!ready) return <main className="page" />;
@@ -98,7 +119,11 @@ export default function DossierPage() {
   }
 
   const comp = completeness(s);
-  const missingBySection = (sec: string) => comp.missing.filter((m) => m.section === sec).length;
+  // Founder-facing fields per section: how many are filled out of how many are tracked.
+  const sectionProgress = (sec: string) => {
+    const total = TRACKED_FIELDS.filter((f) => f.section === sec).length;
+    return total ? { total, filled: total - comp.missing.filter((m) => m.section === sec).length } : null;
+  };
 
   return (
     <DossierProvider value={{ s, set }}>
@@ -117,12 +142,29 @@ export default function DossierPage() {
 
         <div className="dossier" style={{ marginTop: 14 }}>
           <nav className="toc" aria-label="Sections">
-            {SECTIONS.map((x) => (
-              <a key={x.id} href={`#${x.id}`} className={active === x.id ? "active" : ""}>
-                {x.label}
-                {missingBySection(x.id) > 0 && <span className="cnt" title="Missing fields">{missingBySection(x.id)}</span>}
-              </a>
-            ))}
+            <div className="toc-legend">Fields filled</div>
+            {SECTIONS.map((x) => {
+              const pr = sectionProgress(x.id);
+              const done = pr && pr.filled === pr.total;
+              return (
+                <a
+                  key={x.id}
+                  href={`#${x.id}`}
+                  className={active === x.id ? "active" : ""}
+                  onClick={() => {
+                    lockRef.current = x.id;
+                    setActive(x.id);
+                  }}
+                >
+                  {x.label}
+                  {pr && (
+                    <span className={`cnt ${done ? "done" : ""}`} title={`${pr.filled} of ${pr.total} key fields filled`}>
+                      {done ? "✓" : `${pr.filled}/${pr.total}`}
+                    </span>
+                  )}
+                </a>
+              );
+            })}
           </nav>
 
           <div>
@@ -883,12 +925,23 @@ function Notes({ onToast }: { onToast: (m: string) => void }) {
               <div className="num muted" style={{ fontSize: 11.5, paddingTop: 2 }}>{date(n.date)}</div>
               <div className="tl-rail"><span className="dot" style={{ color: n.kind === "Import" ? "var(--c-reported)" : "var(--signal)" }} /></div>
               <div className="tl-body">
-                <div className="row" style={{ gap: 8 }}>
-                  <span className="tag" style={{ color: n.kind === "Import" ? "var(--c-reported)" : "var(--signal)" }}>{n.kind}</span>
-                  <h4 style={{ margin: 0 }}>{n.title}</h4>
-                </div>
-                {n.author && <div className="eyebrow" style={{ margin: "3px 0 4px" }}>{n.author}</div>}
-                {n.body && <p>{n.body}</p>}
+                <details className="tl-note">
+                  <summary>
+                    <span className="tl-chevron" aria-hidden>›</span>
+                    <span className="tag" style={{ color: n.kind === "Import" ? "var(--c-reported)" : "var(--signal)" }}>{n.kind}</span>
+                    <h4 style={{ margin: 0 }}>{n.title}</h4>
+                  </summary>
+                  {n.author && <div className="eyebrow" style={{ marginTop: 3, marginBottom: 4 }}>{n.author}</div>}
+                  {n.body && <p>{n.body}</p>}
+                </details>
+                {n.body && (
+                  <p
+                    className="tl-preview"
+                    onClick={(e) => ((e.currentTarget.previousElementSibling as HTMLDetailsElement).open = true)}
+                  >
+                    {n.body}
+                  </p>
+                )}
               </div>
             </div>
           ))}
