@@ -11,7 +11,7 @@ import { daysSince, money } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { DEAL_STATUSES, STAGES } from "@/lib/types";
 
-const ACTIVE = new Set(["First Meeting", "Second Meeting", "DD", "IC Review"]);
+const ACTIVE = new Set(["First Meeting", "Second Meeting", "Deep Dive", "Triage", "DD", "IC Review"]);
 
 export default function Dashboard() {
   const { startups, ready } = useStore();

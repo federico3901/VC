@@ -2,10 +2,14 @@
 // Every field is plain data; where a value came from lives in `provenance`,
 // keyed by the field path (e.g. "round.raising"), so editors stay simple.
 
+// Same order as the Notion Deal Status groups (to do → in progress → complete).
 export const DEAL_STATUSES = [
+  "New / Captured",
   "To be reviewed",
   "First Meeting",
   "Second Meeting",
+  "Deep Dive",
+  "Triage",
   "DD",
   "IC Review",
   "Invested",
@@ -13,7 +17,7 @@ export const DEAL_STATUSES = [
 ] as const;
 export type DealStatus = (typeof DEAL_STATUSES)[number];
 
-export const STAGES = ["Pre-Seed", "Seed", "Seed+", "Series A", "Series B", "Series C"] as const;
+export const STAGES = ["Pre-Seed", "Seed", "Seed+", "Series A", "Series A2", "Series B", "Series C"] as const;
 export type Stage = (typeof STAGES)[number];
 
 export type Source = "notion" | "call" | "deck" | "research" | "manual";

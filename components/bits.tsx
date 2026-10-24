@@ -5,9 +5,12 @@ import type { DealStatus, Provenance } from "@/lib/types";
 import { date } from "@/lib/format";
 
 export const STATUS_COLOR: Record<DealStatus, string> = {
+  "New / Captured": "var(--faint)",
   "To be reviewed": "var(--faint)",
   "First Meeting": "var(--mute)",
   "Second Meeting": "var(--c-reported)",
+  "Deep Dive": "var(--c-reported)",
+  Triage: "var(--mute)",
   DD: "var(--signal)",
   "IC Review": "var(--warn)",
   Invested: "var(--ok)",
