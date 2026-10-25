@@ -61,9 +61,14 @@ export function TopBar() {
       )}
       <div className="spacer" />
       {!onLogin && (
-        <button className="btn ghost small" onClick={logout}>
-          Log out
-        </button>
+        <>
+          <Link className="btn ghost small" href="/backups" aria-current={active("/backups") ? "page" : undefined}>
+            Backups
+          </Link>
+          <button className="btn ghost small" onClick={logout}>
+            Log out
+          </button>
+        </>
       )}
       <button className="icon-btn" onClick={toggle} aria-label="Toggle theme" title="Toggle theme">
         {theme === "dark" ? (

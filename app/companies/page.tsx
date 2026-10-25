@@ -42,7 +42,7 @@ function Companies() {
         <div className="row">
           <button
             className="btn ghost"
-            onClick={() => confirm("Restore the sample companies? Local edits will be lost.") && reset()}
+            onClick={() => confirm("Replace all companies with the sample set? Your current data is saved under Backups first.") && reset()}
           >
             Reset sample data
           </button>
