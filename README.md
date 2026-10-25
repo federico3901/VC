@@ -73,6 +73,13 @@ title column (Firm) is harmless: the company name is always read from the title 
 a value captured on a founder call, from a deck, or edited by hand. Each field shows its source
 (Notion / Founder call / Deck / Research / Manual) and how reliable it is (confirmed / reported / estimated).
 
+## Saved data and new versions
+
+Dossiers live in each browser's storage on the site's address, so a new deploy never deletes them.
+When a version changes the data shape, `normalizeStartup` (`lib/model.ts`) upgrades old saves on
+load without dropping anything (e.g. the single Product became the first item of Products). Before
+that first upgrade the previous data is copied to `topline.intake.v1.backup-before-products`.
+
 ## Enriching from founder calls
 
 On a dossier, **Notes & calls → Log call / note** records the conversation in the timeline. Any

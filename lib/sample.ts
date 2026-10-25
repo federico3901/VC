@@ -39,16 +39,27 @@ function kestrel(): Startup {
       customer:
         "Buyer: CISO / Head of Platform Security at mid-market and enterprise companies (1k+ employees). User: platform engineers shipping internal agents.",
     },
-    product: {
-      summary:
-        "Policy engine + credential broker + audit console. Live in production at 9 of 14 customers; median deployment 11 days.",
-      maturity: "GA since Q2 2026",
-      technology:
-        "Rust proxy (<4ms p99 overhead), OPA-compatible policy language extended with agent intent, graph of agent → tool → resource permissions.",
-      moat:
-        "Dataset of agent tool-call behaviour across customers powers anomaly detection; deep integrations with identity providers create switching costs.",
-      roadmap: "Q1 2027: agent-to-agent trust (A2A). Q2 2027: SOC2 evidence automation for agent workflows.",
-    },
+    products: [
+      {
+        name: "Kestrel Guard",
+        summary: "Policy engine + credential broker + audit console. Live in production at 9 of 14 customers; median deployment 11 days.",
+        maturity: "GA since Q2 2026",
+        pricing: "Platform fee + usage tier per protected agent",
+        technology:
+          "Rust proxy (<4ms p99 overhead), OPA-compatible policy language extended with agent intent, graph of agent → tool → resource permissions.",
+        moat: "Dataset of agent tool-call behaviour across customers powers anomaly detection; deep integrations with identity providers create switching costs.",
+        roadmap: "Q1 2027: agent-to-agent trust (A2A).",
+      },
+      {
+        name: "Kestrel Audit",
+        summary: "Evidence automation for SOC 2 / ISO audits of agent workflows, built on Guard's replayable logs.",
+        maturity: "Beta with 3 design partners",
+        pricing: "Add-on, ~20% of Guard ACV",
+        technology: "Maps logged agent actions to control frameworks; exports auditor-ready reports.",
+        moat: "Only possible with Guard's action-level logs.",
+        roadmap: "GA Q2 2027.",
+      },
+    ],
     market: {
       tam: 18_000_000_000,
       sam: 3_200_000_000,
@@ -128,17 +139,20 @@ function kestrel(): Startup {
         description: "Prompt-injection firewall for LLM apps",
         funding: "$22M Series A",
         differentiation: "Input filtering only; no identity / permission layer for agent actions.",
+        metrics: { funding: 22_000_000, arr: 2_100_000, customers: 40, employees: 45 },
       },
       {
         name: "Sentinel Mesh",
         description: "Non-human identity management",
         funding: "$60M Series B",
         differentiation: "Strong on service accounts; agents treated as static identities, no per-task scoping.",
+        metrics: { funding: 60_000_000, arr: 9_000_000, customers: 120, employees: 140 },
       },
       {
         name: "Cloud security platforms",
         description: "Incumbent CNAPP / IAM vendors adding AI modules",
         funding: "Public companies",
+        metrics: {},
         differentiation: "Bundled and broad; Kestrel wins on depth and framework integrations. Also likely acquirers.",
       },
     ],

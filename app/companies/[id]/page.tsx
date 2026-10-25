@@ -5,8 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Meter, StatusBadge, Toast } from "@/components/bits";
 import { catColor, LineChart, MarketCircles, StackBar } from "@/components/charts";
+import { CompetitorCharts, CompetitorKpiEditor } from "@/components/competition";
 import { DossierProvider, Field, ListEditor, Section, StringList, useDossier, useEditing } from "@/components/dossier";
-import { completeness, ddProgress, postMoney, setPath, TRACKED_FIELDS, weightedScore } from "@/lib/model";
+import { completeness, ddProgress, emptyProduct, postMoney, setPath, TRACKED_FIELDS, weightedScore } from "@/lib/model";
 import { date, money, pct, today } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { describeMerge, syncDeal } from "@/lib/sync";
@@ -30,7 +31,7 @@ import {
 const SECTIONS = [
   { id: "overview", label: "Overview" },
   { id: "team", label: "Team" },
-  { id: "product", label: "Product" },
+  { id: "product", label: "Products" },
   { id: "market", label: "Market" },
   { id: "traction", label: "Traction" },
   { id: "round", label: "Cap table & round" },
@@ -126,7 +127,7 @@ export default function DossierPage() {
   };
 
   return (
-    <DossierProvider value={{ s, set }}>
+    <DossierProvider value={{ s, set, replace: (fn) => update(s.id, fn) }}>
       <main className="page">
         <div className="row" style={{ marginBottom: 14 }}>
           <Link className="btn ghost small" href="/companies">← Companies</Link>
@@ -352,15 +353,62 @@ function TeamBody() {
 
 function Product() {
   return (
-    <Section id="product" n={3} title="Product">
-      <div className="fields">
-        <Field path="product.summary" label="Summary" type="long" wide />
-        <Field path="product.maturity" label="Maturity" />
-        <Field path="product.technology" label="Technology" type="long" />
-        <Field path="product.moat" label="Moat / defensibility" type="long" />
-        <Field path="product.roadmap" label="Roadmap" type="long" />
-      </div>
+    <Section id="product" n={3} title="Products">
+      <ProductsBody />
     </Section>
+  );
+}
+
+function ProductsBody() {
+  const { s, set, replace } = useDossier();
+  const editing = useEditing();
+
+  // Removing product i shifts the source tags of the products after it.
+  const remove = (i: number) =>
+    replace((cur) => {
+      const provenance: Startup["provenance"] = {};
+      for (const [path, p] of Object.entries(cur.provenance)) {
+        const m = path.match(/^products\.(\d+)\.(.+)$/);
+        if (!m) provenance[path] = p;
+        else if (+m[1] < i) provenance[path] = p;
+        else if (+m[1] > i) provenance[`products.${+m[1] - 1}.${m[2]}`] = p;
+      }
+      return { ...cur, products: cur.products.filter((_, j) => j !== i), provenance };
+    });
+
+  if (!s.products.length && !editing)
+    return <div className="field-value empty">No products captured yet — click Edit to add one.</div>;
+
+  return (
+    <div className="stack-v" style={{ gap: 14 }}>
+      {s.products.map((p, i) => (
+        <div key={i} className="product-block">
+          <div className="row between" style={{ marginBottom: 10 }}>
+            <div className="row" style={{ gap: 8 }}>
+              <h3 className="product-name">{p.name || `Product ${i + 1}`}</h3>
+              {p.maturity && !editing && <span className="chip signal">{p.maturity}</span>}
+            </div>
+            {editing && (
+              <button className="btn ghost small danger" onClick={() => remove(i)}>Remove product</button>
+            )}
+          </div>
+          <div className="fields">
+            {editing && <Field path={`products.${i}.name`} label="Product name" />}
+            {editing && <Field path={`products.${i}.maturity`} label="Maturity" placeholder="e.g. Beta, GA" />}
+            <Field path={`products.${i}.summary`} label="Summary" type="long" wide />
+            <Field path={`products.${i}.pricing`} label="Pricing" />
+            <Field path={`products.${i}.technology`} label="Technology" type="long" />
+            <Field path={`products.${i}.moat`} label="Moat / defensibility" type="long" />
+            <Field path={`products.${i}.roadmap`} label="Roadmap" type="long" />
+          </div>
+        </div>
+      ))}
+      {editing && (
+        <button className="btn small" style={{ justifySelf: "start" }} onClick={() => set("products", [...s.products, emptyProduct()])}>
+          + Add product
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -577,37 +625,45 @@ function CompetitionBody() {
   const editing = useEditing();
   if (editing)
     return (
-      <ListEditor<Competitor>
-        path="competitors"
-        addLabel="Add competitor"
-        blank={{ name: "", description: "", funding: "", differentiation: "" }}
-        cols={[
-          { key: "name", label: "Name", width: "18%" },
-          { key: "description", label: "What they do", type: "long" },
-          { key: "funding", label: "Funding", width: "14%" },
-          { key: "differentiation", label: "How this company wins", type: "long" },
-        ]}
-      />
+      <>
+        <ListEditor<Competitor>
+          path="competitors"
+          addLabel="Add competitor"
+          blank={{ name: "", description: "", funding: "", differentiation: "", metrics: {} }}
+          cols={[
+            { key: "name", label: "Name", width: "18%" },
+            { key: "description", label: "What they do", type: "long" },
+            { key: "funding", label: "Funding", width: "14%" },
+            { key: "differentiation", label: "How this company wins", type: "long" },
+          ]}
+        />
+        <CompetitorKpiEditor />
+      </>
     );
   if (!s.competitors.length) return <div className="field-value empty">No competitors mapped yet.</div>;
   return (
-    <div className="table-wrap">
-      <table className="data">
-        <thead>
-          <tr><th>Competitor</th><th>What they do</th><th>Funding</th><th>How {s.name} wins</th></tr>
-        </thead>
-        <tbody>
-          {s.competitors.map((c, i) => (
-            <tr key={i}>
-              <td style={{ fontWeight: 600 }}>{c.name}</td>
-              <td className="muted">{c.description}</td>
-              <td className="num" style={{ whiteSpace: "nowrap" }}>{c.funding}</td>
-              <td>{c.differentiation}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div className="table-wrap">
+        <table className="data">
+          <thead>
+            <tr><th>Competitor</th><th>What they do</th><th>Funding</th><th>How {s.name} wins</th></tr>
+          </thead>
+          <tbody>
+            {s.competitors.map((c, i) => (
+              <tr key={i}>
+                <td style={{ fontWeight: 600 }}>{c.name}</td>
+                <td className="muted">{c.description}</td>
+                <td className="num" style={{ whiteSpace: "nowrap" }}>{c.funding}</td>
+                <td>{c.differentiation}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <hr className="sep" />
+      <div className="eyebrow" style={{ marginBottom: 10 }}>Compare on a KPI</div>
+      <CompetitorCharts s={s} />
+    </>
   );
 }
 

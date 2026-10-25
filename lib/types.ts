@@ -51,11 +51,31 @@ export interface UseOfFunds {
   pct: number;
 }
 
+export interface Product {
+  name: string;
+  summary: string;
+  maturity: string;
+  pricing: string;
+  technology: string;
+  moat: string;
+  roadmap: string;
+}
+
 export interface Competitor {
   name: string;
   description: string;
   funding: string;
   differentiation: string;
+  metrics?: Record<string, number | null>; // KPI id → value, for the comparison charts
+}
+
+/** A KPI used to compare the company with its competitors. */
+export interface CompetitorKpi {
+  id: string;
+  label: string;
+  unit: "$" | "%" | "#";
+  /** Dossier field that provides the company's own value when none is typed in, e.g. "traction.arr". */
+  from?: string;
 }
 
 export interface KpiPoint {
@@ -126,13 +146,7 @@ export interface Startup {
     whyNow: string;
     customer: string;
   };
-  product: {
-    summary: string;
-    maturity: string;
-    technology: string;
-    moat: string;
-    roadmap: string;
-  };
+  products: Product[];
   market: {
     tam: number | null;
     sam: number | null;
@@ -168,6 +182,8 @@ export interface Startup {
   useOfFunds: UseOfFunds[];
   capTable: CapRow[];
   competitors: Competitor[];
+  competitorKpis: CompetitorKpi[];
+  selfMetrics: Record<string, number | null>; // the company's own KPI values (override `from`)
   thesis: {
     strengths: string[];
     risks: string[];

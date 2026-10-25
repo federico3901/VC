@@ -3,6 +3,7 @@
 // Client-side store. The sample keeps dossiers in localStorage so it runs with zero backend;
 // swapping this for a database (Supabase/Postgres) only touches this file.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { normalizeStartup } from "./model";
 import { sampleStartups } from "./sample";
 import type { Startup } from "./types";
 
@@ -26,10 +27,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let data: Startup[] | null = null;
+    let raw: string | null = null;
     try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) data = JSON.parse(raw);
+      raw = localStorage.getItem(KEY);
     } catch {}
+    if (raw) {
+      try {
+        // A save from before multi-product support gets a one-time backup before it is upgraded.
+        if (!raw.includes('"products"')) localStorage.setItem(`${KEY}.backup-before-products`, raw);
+      } catch {}
+      try {
+        const parsed = JSON.parse(raw);
+        // Older saves are upgraded to the current shape; nothing is dropped.
+        if (Array.isArray(parsed)) data = parsed.map(normalizeStartup);
+      } catch {
+        // Never replace unreadable saved data with the samples: keep a copy and stop here.
+        try {
+          localStorage.setItem(`${KEY}.unreadable-${Date.now()}`, raw);
+        } catch {}
+      }
+    }
     setStartups(data ?? sampleStartups());
     setReady(true);
   }, []);

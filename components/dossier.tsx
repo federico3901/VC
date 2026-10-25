@@ -11,6 +11,8 @@ import { ProvTag } from "./bits";
 interface DossierApi {
   s: Startup;
   set: (path: string, value: unknown, prov?: Partial<Provenance>) => void;
+  /** Whole-dossier update, for edits that touch several paths at once (e.g. removing a product). */
+  replace: (fn: (s: Startup) => Startup) => void;
 }
 const DossierCtx = createContext<DossierApi | null>(null);
 export const DossierProvider = DossierCtx.Provider;

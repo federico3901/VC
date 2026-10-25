@@ -1,4 +1,4 @@
-import type { DDItem, ScoreCriterion, Startup } from "./types";
+import type { CompetitorKpi, DDItem, Product, ScoreCriterion, Startup } from "./types";
 
 export const DEFAULT_SCORING: ScoreCriterion[] = [
   { criterion: "Team", weight: 30, score: null, note: "" },
@@ -24,6 +24,17 @@ export const DEFAULT_DD: DDItem[] = [
   { area: "Legal", item: "Incorporation & good standing", status: "To do", note: "" },
 ];
 
+export const DEFAULT_COMPETITOR_KPIS: CompetitorKpi[] = [
+  { id: "funding", label: "Total funding", unit: "$", from: "round.totalRaised" },
+  { id: "arr", label: "ARR", unit: "$", from: "traction.arr" },
+  { id: "customers", label: "Customers", unit: "#", from: "traction.customers" },
+  { id: "employees", label: "Employees", unit: "#", from: "employees" },
+];
+
+export const emptyProduct = (name = ""): Product => ({
+  name, summary: "", maturity: "", pricing: "", technology: "", moat: "", roadmap: "",
+});
+
 export function emptyStartup(id: string, name: string): Startup {
   return {
     id,
@@ -41,7 +52,7 @@ export function emptyStartup(id: string, name: string): Startup {
     referral: "",
     lastContact: "",
     description: { oneLiner: "", problem: "", solution: "", whyNow: "", customer: "" },
-    product: { summary: "", maturity: "", technology: "", moat: "", roadmap: "" },
+    products: [],
     market: { tam: null, sam: null, som: null, methodology: "", geography: "", trends: "" },
     team: [],
     traction: {
@@ -56,6 +67,8 @@ export function emptyStartup(id: string, name: string): Startup {
     useOfFunds: [],
     capTable: [],
     competitors: [],
+    competitorKpis: DEFAULT_COMPETITOR_KPIS.map((k) => ({ ...k })),
+    selfMetrics: {},
     thesis: { strengths: [], risks: [], openQuestions: [], recommendation: "" },
     scoring: DEFAULT_SCORING.map((c) => ({ ...c })),
     dd: DEFAULT_DD.map((d) => ({ ...d })),
@@ -86,8 +99,8 @@ export const TRACKED_FIELDS: { path: string; label: string; section: string; ask
   { path: "founded", label: "Founded", section: "overview", ask: "When was the company incorporated?" },
   { path: "businessModel", label: "Business model", section: "overview", ask: "How do you charge, and what is the average contract value?" },
   { path: "team", label: "Founding team", section: "team", ask: "Walk us through the founding team and how you met." },
-  { path: "product.summary", label: "Product summary", section: "product", ask: "Can you give us a product demo?" },
-  { path: "product.moat", label: "Moat", section: "product", ask: "What gets harder to copy as you scale?" },
+  { path: "products.0.summary", label: "Product summary", section: "product", ask: "Can you give us a product demo?" },
+  { path: "products.0.moat", label: "Moat", section: "product", ask: "What gets harder to copy as you scale?" },
   { path: "market.tam", label: "TAM", section: "market", ask: "How do you size the market bottom-up?" },
   { path: "market.sam", label: "SAM", section: "market", ask: "Which segment of the market is reachable in the next 3 years?" },
   { path: "competitors", label: "Competitors", section: "competition", ask: "Who do you lose deals to, and why?" },
@@ -143,4 +156,50 @@ export function postMoney(s: Startup): number | null {
 
 export function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "company";
+}
+
+/**
+ * Brings a dossier saved by an older version up to the current shape, so new deploys never
+ * lose or break stored data: missing fields get their defaults, the single `product`
+ * becomes the first entry of `products`.
+ */
+export function normalizeStartup(raw: unknown): Startup {
+  const r = (raw ?? {}) as Record<string, unknown> & { product?: Record<string, string>; provenance?: Record<string, unknown> };
+  const base = emptyStartup(String(r.id ?? slugify(String(r.name ?? ""))), String(r.name ?? ""));
+  const out = { ...base, ...r } as Startup & { product?: Record<string, string> };
+  for (const k of ["description", "market", "traction", "round", "thesis"] as const) {
+    out[k] = { ...base[k], ...((r[k] as object) ?? {}) } as never;
+  }
+  for (const k of ["team", "kpiHistory", "useOfFunds", "capTable", "competitors", "scoring", "dd", "documents", "notes"] as const) {
+    if (!Array.isArray(out[k])) out[k] = base[k] as never;
+  }
+  if (!out.provenance || typeof out.provenance !== "object") out.provenance = {};
+
+  // Check the raw save, not `out`: `out` already carries the empty default list.
+  if (!Array.isArray(r.products)) {
+    const old = r.product;
+    const filled = old && Object.values(old).some((v) => typeof v === "string" && v.trim());
+    out.products = filled ? [{ ...emptyProduct(out.name), ...old }] : [];
+    if (filled) {
+      // Keep each field's source tag: "product.x" becomes "products.0.x".
+      for (const [path, prov] of Object.entries(out.provenance)) {
+        if (path.startsWith("product.")) {
+          out.provenance[path.replace(/^product\./, "products.0.")] = prov;
+          delete out.provenance[path];
+        }
+      }
+    }
+  }
+  delete out.product;
+  if (!Array.isArray(r.competitorKpis)) out.competitorKpis = base.competitorKpis;
+  if (!r.selfMetrics || typeof r.selfMetrics !== "object") out.selfMetrics = {};
+  return out;
+}
+
+/** The company's own value for a KPI: typed-in value first, then the linked dossier field. */
+export function selfMetric(s: Startup, k: CompetitorKpi): number | null {
+  const v = s.selfMetrics[k.id];
+  if (v != null) return v;
+  const linked = k.from ? getPath(s, k.from) : null;
+  return typeof linked === "number" ? linked : null;
 }
