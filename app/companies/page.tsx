@@ -8,7 +8,7 @@ import { today } from "@/lib/format";
 import { useStore } from "@/lib/store";
 
 function Companies() {
-  const { startups, ready, save, reset } = useStore();
+  const { startups, ready, save, reset, backend } = useStore();
   const params = useSearchParams();
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -40,12 +40,14 @@ function Companies() {
           <h1 className="display">Companies</h1>
         </div>
         <div className="row">
-          <button
-            className="btn ghost"
-            onClick={() => confirm("Replace all companies with the sample set? Your current data is saved under Backups first.") && reset()}
-          >
-            Reset sample data
-          </button>
+          {backend === "local" && (
+            <button
+              className="btn ghost"
+              onClick={() => confirm("Replace all companies with the sample set? Your current data in this browser will be lost.") && reset()}
+            >
+              Reset sample data
+            </button>
+          )}
           <button className="btn primary" onClick={() => setCreating(true)}>+ New company</button>
         </div>
       </div>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useStore } from "@/lib/store";
 
 export function BrandMark() {
   return (
@@ -37,6 +38,11 @@ export function TopBar() {
 
   const active = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   const onLogin = path === "/login";
+  const { backend, sync, syncError } = useStore();
+  const syncLabel =
+    backend === "supabase"
+      ? sync === "saving" ? "Saving…" : sync === "error" ? "Not saved — retrying" : "Saved to cloud"
+      : backend === "local" ? (syncError ? "Cloud unavailable — this browser only" : "Saved in this browser") : "";
 
   async function logout() {
     await fetch("/api/login", { method: "DELETE" });
@@ -60,15 +66,20 @@ export function TopBar() {
         </nav>
       )}
       <div className="spacer" />
+      {!onLogin && syncLabel && (
+        <span
+          className="status"
+          title={syncError ?? (backend === "supabase" ? "Shared with the team via Supabase" : "Data lives only in this browser")}
+          style={{ color: sync === "error" || syncError ? "var(--crit)" : backend === "supabase" ? "var(--ok)" : "var(--faint)", fontSize: 12 }}
+        >
+          <span className="dot" />
+          <span className="muted">{syncLabel}</span>
+        </span>
+      )}
       {!onLogin && (
-        <>
-          <Link className="btn ghost small" href="/backups" aria-current={active("/backups") ? "page" : undefined}>
-            Backups
-          </Link>
-          <button className="btn ghost small" onClick={logout}>
-            Log out
-          </button>
-        </>
+        <button className="btn ghost small" onClick={logout}>
+          Log out
+        </button>
       )}
       <button className="icon-btn" onClick={toggle} aria-label="Toggle theme" title="Toggle theme">
         {theme === "dark" ? (

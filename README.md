@@ -73,12 +73,28 @@ title column (Firm) is harmless: the company name is always read from the title 
 a value captured on a founder call, from a deck, or edited by hand. Each field shows its source
 (Notion / Founder call / Deck / Research / Manual) and how reliable it is (confirmed / reported / estimated).
 
-## Saved data and new versions
+## Where data is saved: Supabase (shared) or this browser
 
-Dossiers live in each browser's storage on the site's address, so a new deploy never deletes them.
-When a version changes the data shape, `normalizeStartup` (`lib/model.ts`) upgrades old saves on
-load without dropping anything (e.g. the single Product became the first item of Products). Before
-that first upgrade the previous data is copied to `topline.intake.v1.backup-before-products`.
+Without Supabase, dossiers live only in each browser (localStorage), per web address. Tabs of the
+same browser follow each other's changes. A new deploy never deletes them; old saves are upgraded on
+load by `normalizeStartup` (`lib/model.ts`).
+
+With Supabase, dossiers live in one shared table and the whole team sees the same data:
+
+1. In Supabase create a project, then **SQL Editor** → paste and run [`supabase/schema.sql`](supabase/schema.sql).
+2. **Project Settings → API Keys**: copy the **Project URL** and the **secret** key (`sb_secret_…`,
+   or the legacy `service_role` key).
+3. In Vercel → Settings → Environments → Production, add:
+   - `SUPABASE_URL` = the Project URL
+   - `SUPABASE_SECRET_KEY` = the secret key (type **Secret**)
+
+   (The Supabase ↔ Vercel integration sets `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`, which also work.)
+4. Redeploy. On first open, each browser uploads the dossiers it had saved locally (companies the
+   server already has are not overwritten). The top bar shows **Saved to cloud**.
+
+The secret key stays on the server: the browser only talks to the app's own `/api/dossiers`, which
+is behind the team password. Row Level Security is on with no policies, so the table is not reachable
+with the public key.
 
 ## Enriching from founder calls
 
