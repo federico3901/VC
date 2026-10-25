@@ -12,6 +12,7 @@ import { sampleStartups } from "./sample";
 import type { Startup } from "./types";
 
 export const KEY = "topline.intake.v1";
+const SYNCED = `${KEY}.cloud-synced`; // set once this browser's local data has been uploaded
 
 export type Backend = "loading" | "local" | "supabase";
 export type SyncState = "idle" | "saving" | "error";
@@ -26,6 +27,7 @@ interface Store {
   save: (s: Startup) => void;
   update: (id: string, fn: (s: Startup) => Startup) => void;
   remove: (id: string) => void;
+  removeMany: (ids: string[]) => void;
   reset: () => void;
 }
 
@@ -81,9 +83,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (json.configured) {
           const server: Startup[] = (json.dossiers as unknown[]).map(normalizeStartup);
           const ids = new Set(server.map((s) => s.id));
-          // Anything saved only in this browser is uploaded, so nothing is left behind.
-          const onlyLocal = (local ?? (server.length ? [] : sampleStartups())).filter((s) => !ids.has(s.id));
+          // The first time a browser connects, what it had saved locally is uploaded (sample companies
+          // excluded), so nothing is left behind. After that the server is the source of truth: a
+          // company deleted on another device must not come back from this browser's old copy.
+          let firstTime = true;
+          try {
+            firstTime = !localStorage.getItem(SYNCED);
+          } catch {}
+          const onlyLocal = firstTime ? (local ?? []).filter((s) => !s.sample && !ids.has(s.id)) : [];
           if (onlyLocal.length) await api("/api/dossiers", { method: "POST", body: JSON.stringify({ dossiers: onlyLocal }) });
+          try {
+            localStorage.setItem(SYNCED, new Date().toISOString());
+          } catch {}
           if (cancelled) return;
           setStartups([...server, ...onlyLocal]);
           setBackend("supabase");
@@ -237,6 +248,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [remote, schedule],
   );
+  const removeMany = useCallback(
+    (ids: string[]) => {
+      const drop = new Set(ids);
+      setStartups((all) => all.filter((x) => !drop.has(x.id)));
+      if (remote) {
+        ids.forEach((id) => {
+          dirty.current.delete(id);
+          deleted.current.add(id);
+        });
+        schedule();
+      }
+    },
+    [remote, schedule],
+  );
   // Only offered in local mode: with Supabase it would wipe the team's data.
   const reset = useCallback(() => {
     if (!remote) setStartups(sampleStartups());
@@ -246,9 +271,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => ({
       ready, startups, backend, sync, syncError,
       get: (id) => startups.find((s) => s.id === id),
-      save, update, remove, reset,
+      save, update, remove, removeMany, reset,
     }),
-    [ready, startups, backend, sync, syncError, save, update, remove, reset],
+    [ready, startups, backend, sync, syncError, save, update, remove, removeMany, reset],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
