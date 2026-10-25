@@ -114,12 +114,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [startups, ready]);
 
   // ---- other tabs of this browser: follow their changes instead of overwriting them ----
+  // With Supabase on, dossiers another tab added or changed are uploaded too: that tab may be an
+  // older version of the app that only saves in the browser.
+  const remoteRef = useRef(false);
+  remoteRef.current = backend === "supabase";
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== KEY || !e.newValue) return;
       try {
         const parsed = JSON.parse(e.newValue);
-        if (Array.isArray(parsed)) setStartups(parsed.map(normalizeStartup));
+        if (!Array.isArray(parsed)) return;
+        const incoming: Startup[] = parsed.map(normalizeStartup);
+        if (remoteRef.current) {
+          const before = new Map(latest.current.map((s) => [s.id, JSON.stringify(s)]));
+          for (const s of incoming) if (before.get(s.id) !== JSON.stringify(s)) dirty.current.add(s.id);
+          if (dirty.current.size) scheduleRef.current();
+        }
+        setStartups(incoming);
       } catch {}
     };
     window.addEventListener("storage", onStorage);
@@ -156,6 +167,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(flush, 700);
   }, [flush]);
+  const scheduleRef = useRef(schedule);
+  scheduleRef.current = schedule;
 
   const markDirty = useCallback(
     (id: string) => {

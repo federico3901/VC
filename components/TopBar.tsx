@@ -22,6 +22,7 @@ const LINKS = [
 export function TopBar() {
   const path = usePathname();
   const [theme, setTheme] = useState<"dark" | "light">("light");
+  const [showSync, setShowSync] = useState(false);
 
   useEffect(() => {
     setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
@@ -67,14 +68,33 @@ export function TopBar() {
       )}
       <div className="spacer" />
       {!onLogin && syncLabel && (
-        <span
-          className="status"
-          title={syncError ?? (backend === "supabase" ? "Shared with the team via Supabase" : "Data lives only in this browser")}
-          style={{ color: sync === "error" || syncError ? "var(--crit)" : backend === "supabase" ? "var(--ok)" : "var(--faint)", fontSize: 12 }}
-        >
-          <span className="dot" />
-          <span className="muted">{syncLabel}</span>
-        </span>
+        <div style={{ position: "relative" }}>
+          <button
+            className="status"
+            onClick={() => setShowSync((v) => !v)}
+            aria-expanded={showSync}
+            title="Where your data is saved"
+            style={{ color: sync === "error" || syncError ? "var(--crit)" : backend === "supabase" ? "var(--ok)" : "var(--faint)", fontSize: 12 }}
+          >
+            <span className="dot" />
+            <span className="muted">{syncLabel}</span>
+          </button>
+          {showSync && (
+            <div className="sync-pop" role="dialog">
+              {syncError ? (
+                <>
+                  <strong>Why the cloud is not in use</strong>
+                  <p>{syncError}</p>
+                  <p className="muted">Your changes are kept in this browser meanwhile.</p>
+                </>
+              ) : backend === "supabase" ? (
+                <p>Data is saved in Supabase and shared with everyone who signs in.</p>
+              ) : (
+                <p>Supabase is not set up, so data is saved only in this browser. See README → Supabase.</p>
+              )}
+            </div>
+          )}
+        </div>
       )}
       {!onLogin && (
         <button className="btn ghost small" onClick={logout}>
