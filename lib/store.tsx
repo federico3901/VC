@@ -8,6 +8,7 @@
 // In both modes, tabs of the same browser follow each other's changes instead of overwriting them.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { normalizeStartup } from "./model";
+import { withStageHistory } from "./process";
 import { sampleStartups } from "./sample";
 import type { Startup } from "./types";
 
@@ -225,14 +226,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const save = useCallback(
     (s: Startup) => {
-      setStartups((all) => (all.some((x) => x.id === s.id) ? all.map((x) => (x.id === s.id ? s : x)) : [s, ...all]));
+      setStartups((all) => {
+        const prev = all.find((x) => x.id === s.id);
+        const next = withStageHistory(prev, s);
+        return prev ? all.map((x) => (x.id === s.id ? next : x)) : [next, ...all];
+      });
       markDirty(s.id);
     },
     [markDirty],
   );
   const update = useCallback(
     (id: string, fn: (s: Startup) => Startup) => {
-      setStartups((all) => all.map((x) => (x.id === id ? fn(x) : x)));
+      setStartups((all) => all.map((x) => (x.id === id ? withStageHistory(x, fn(x)) : x)));
       markDirty(id);
     },
     [markDirty],

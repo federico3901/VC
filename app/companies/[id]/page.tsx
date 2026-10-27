@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Meter, StatusBadge, Toast } from "@/components/bits";
 import { catColor, LineChart, MarketCircles, StackBar } from "@/components/charts";
 import { CompetitorCharts, CompetitorKpiEditor } from "@/components/competition";
+import { ProcessControls, ProcessStrip } from "@/components/process";
 import { DossierProvider, Field, ListEditor, Section, StringList, useDossier, useEditing } from "@/components/dossier";
 import { completeness, ddProgress, emptyProduct, postMoney, setPath, TRACKED_FIELDS, weightedScore } from "@/lib/model";
 import { date, money, pct, today } from "@/lib/format";
@@ -246,6 +247,10 @@ function Hero({
         ))}
         {s.website && <a className="chip" href={s.website} target="_blank" rel="noreferrer">{s.website.replace(/^https?:\/\//, "")} ↗</a>}
         {s.owner && <span className="chip">Owner · {s.owner}</span>}
+      </div>
+      <div className="hero-process">
+        <ProcessStrip s={s} />
+        <ProcessControls s={s} set={set} />
       </div>
       <div className="hero-stats">
         <Stat label="Raising" v={money(s.round.raising)} />

@@ -1,5 +1,6 @@
 // Fictional sample data. None of these companies, people or numbers are real.
 import { emptyStartup } from "./model";
+import { PROCESS, stageIndex, stageOfStatus, type Channel } from "./process";
 import type { DealStatus, Provenance, Stage, Startup } from "./types";
 
 const p = (source: Provenance["source"], confidence: Provenance["confidence"], at: string): Provenance => ({
@@ -24,6 +25,16 @@ function kestrel(): Startup {
     status: "Second Meeting",
     owner: "Federico M.",
     referral: "Intro from Dana Whitfield (angel, ex-CISO)",
+    process: {
+      channel: "Warm Intros",
+      priority: "Priority",
+      notifiedAt: "",
+      history: [
+        { stage: "intake", date: "2026-09-15" },
+        { stage: "screening", date: "2026-09-16" },
+        { stage: "deepdive", date: "2026-09-18" },
+      ],
+    },
     lastContact: "2026-10-16",
     notionPageId: "sample-kestrel",
     lastSyncedAt: "2026-10-16T09:12:00Z",
@@ -280,6 +291,8 @@ function lite(
     score?: number[];
     lastContact: string;
     oneLiner?: string;
+    channel: Channel;
+    declinedAt?: "screening" | "deepdive";
   },
 ): Startup {
   const s = emptyStartup(id, name);
@@ -296,6 +309,20 @@ function lite(
   s.traction.arr = o.arr ?? null;
   s.description.oneLiner = o.oneLiner ?? "";
   if (o.score) s.scoring = s.scoring.map((c, i) => ({ ...c, score: o.score![i] ?? null }));
+  // A plausible path: one stage per week, ending at the current stage on the last contact date.
+  const end = o.status === "Passed" ? o.declinedAt ?? "screening" : stageOfStatus(o.status) ?? "intake";
+  const reached = PROCESS.slice(0, stageIndex(end) + 1);
+  const day = (back: number) => new Date(Date.parse(o.lastContact) - back * 7 * 86_400_000).toISOString().slice(0, 10);
+  s.process = {
+    channel: o.channel,
+    priority: "",
+    notifiedAt: o.status === "Passed" ? o.lastContact : "",
+    history: [
+      ...reached.map((st, i) => ({ stage: st.id, date: day(reached.length - 1 - i) })),
+      ...(o.status === "Passed" ? [{ stage: end, date: o.lastContact, outcome: "declined" as const }] : []),
+      ...(o.status === "Invested" ? [{ stage: "final" as const, date: o.lastContact, outcome: "invested" as const }] : []),
+    ],
+  };
   s.provenance = {
     name: p("notion", "confirmed", o.lastContact),
     stage: p("notion", "confirmed", o.lastContact),
@@ -318,6 +345,7 @@ export function sampleStartups(): Startup[] {
   return [
     kestrel(),
     lite("ampere-grid", "Ampere Grid", {
+      channel: "Events",
       tagline: "Software-defined battery dispatch for C&I sites",
       sectors: ["Climate Tech", "SaaS"],
       stage: "Seed+",
@@ -331,6 +359,7 @@ export function sampleStartups(): Startup[] {
       oneLiner: "Optimises behind-the-meter batteries to cut demand charges.",
     }),
     lite("tessellate-robotics", "Tessellate Robotics", {
+      channel: "Outbound",
       tagline: "Autonomous palletising cells as a service",
       sectors: ["Robotics", "AI/ML"],
       stage: "Series A",
@@ -343,6 +372,7 @@ export function sampleStartups(): Startup[] {
       lastContact: "2026-10-11",
     }),
     lite("fieldnote", "Fieldnote", {
+      channel: "Inbound form",
       tagline: "Voice-first CRM for field sales reps",
       sectors: ["SaaS", "AI/ML"],
       stage: "Pre-Seed",
@@ -352,6 +382,7 @@ export function sampleStartups(): Startup[] {
       lastContact: "2026-10-21",
     }),
     lite("lumen-ledger", "Lumen Ledger", {
+      channel: "Inbound form",
       tagline: "AI close-management for mid-market finance teams",
       sectors: ["FinTech AI"],
       stage: "Pre-Seed",
@@ -360,6 +391,7 @@ export function sampleStartups(): Startup[] {
       lastContact: "2026-10-22",
     }),
     lite("patchwork-dev", "Patchwork", {
+      channel: "Accelerators",
       tagline: "Automated dependency upgrades with test-verified PRs",
       sectors: ["DevTools"],
       stage: "Seed",
@@ -372,6 +404,7 @@ export function sampleStartups(): Startup[] {
       lastContact: "2026-10-09",
     }),
     lite("quillmark", "Quillmark", {
+      channel: "Warm Intros", declinedAt: "deepdive",
       tagline: "Contract redlining copilot for in-house legal",
       sectors: ["LegalTech", "AI/ML"],
       stage: "Seed",
@@ -384,6 +417,7 @@ export function sampleStartups(): Startup[] {
       lastContact: "2026-09-02",
     }),
     lite("orbitwell", "Orbitwell", {
+      channel: "Warm Intros",
       tagline: "Remote monitoring for post-surgical patients",
       sectors: ["HealthTech"],
       stage: "Seed",

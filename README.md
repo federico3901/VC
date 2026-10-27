@@ -96,6 +96,20 @@ The secret key stays on the server: the browser only talks to the app's own `/ap
 is behind the team password. Row Level Security is on with no policies, so the table is not reachable
 with the public key.
 
+## Investment process view
+
+**Process** shows Topline's six stages side by side (horizontal scroll): Intake (channels: Inbound
+form, Warm Intros, Accelerators, Outbound, Events), Screening, Deep dive, Due diligence (provisional),
+IC revision and Final decision (GP). Each stage lists the companies currently in it; pick a company to
+highlight its path: stages done, where it is now, or where it was declined.
+
+The stage comes from the deal status (`lib/process.ts`): New / Captured → Intake; To be reviewed,
+Triage → Screening; First/Second Meeting, Deep Dive → Deep dive; DD → Due diligence; IC Review → IC
+revision; Invested → Final decision; Passed → declined at the last stage reached. Every status change
+(manual or from Notion) is recorded with its date. Each company card shows the same path and lets you
+set the intake channel, the deep-dive priority (Priority / On hold) and whether the decline or
+on-hold message has been sent.
+
 ## Enriching from founder calls
 
 On a dossier, **Notes & calls → Log call / note** records the conversation in the timeline. Any

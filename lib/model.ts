@@ -53,6 +53,7 @@ export function emptyStartup(id: string, name: string): Startup {
     lastContact: "",
     description: { oneLiner: "", problem: "", solution: "", whyNow: "", customer: "" },
     products: [],
+    process: { channel: "", priority: "", notifiedAt: "", history: [] },
     market: { tam: null, sam: null, som: null, methodology: "", geography: "", trends: "" },
     team: [],
     traction: {
@@ -167,7 +168,7 @@ export function normalizeStartup(raw: unknown): Startup {
   const r = (raw ?? {}) as Record<string, unknown> & { product?: Record<string, string>; provenance?: Record<string, unknown> };
   const base = emptyStartup(String(r.id ?? slugify(String(r.name ?? ""))), String(r.name ?? ""));
   const out = { ...base, ...r } as Startup & { product?: Record<string, string> };
-  for (const k of ["description", "market", "traction", "round", "thesis"] as const) {
+  for (const k of ["description", "market", "traction", "round", "thesis", "process"] as const) {
     out[k] = { ...base[k], ...((r[k] as object) ?? {}) } as never;
   }
   for (const k of ["team", "kpiHistory", "useOfFunds", "capTable", "competitors", "scoring", "dd", "documents", "notes"] as const) {

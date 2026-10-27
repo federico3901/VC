@@ -147,6 +147,12 @@ export interface Startup {
     customer: string;
   };
   products: Product[];
+  process: {
+    channel: "" | "Inbound form" | "Warm Intros" | "Accelerators" | "Outbound" | "Events";
+    priority: "" | "Priority" | "On hold"; // deep-dive outcome
+    notifiedAt: string; // date the company was told about a decline / on-hold decision
+    history: { stage: "intake" | "screening" | "deepdive" | "dd" | "ic" | "final"; date: string; outcome?: "declined" | "invested" }[];
+  };
   market: {
     tam: number | null;
     sam: number | null;

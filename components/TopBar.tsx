@@ -16,6 +16,7 @@ export function BrandMark() {
 const LINKS = [
   { href: "/", label: "Dashboard" },
   { href: "/companies", label: "Companies" },
+  { href: "/process", label: "Process" },
   { href: "/import", label: "Notion sync" },
 ];
 
